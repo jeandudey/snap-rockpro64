@@ -1,0 +1,46 @@
+---
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2026 Jean-Pierre De Jesus DIAZ <me@jeandudey.tech>
+
+format: 0
+volumes:
+  rockpro64:
+    schema: "gpt"
+    bootloader: u-boot
+    structure:
+      - name: u-boot
+        offset: 32768
+        type: bare
+        size: 16777216
+        content:
+          - image: u-boot-rockchip.bin
+        update:
+          edition: 5
+      - name: ubuntu-seed
+        role: system-seed
+        filesystem: vfat
+        type: "0C,C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+        size: 1500M
+        content:
+          - source: boot.scr
+            target: /
+        update:
+          edition: 4
+      - name: ubuntu-boot
+        role: system-boot
+        filesystem: vfat
+        type: "83,0FC63DAF-8483-4772-8E79-3D69D8477DE4"
+        size: 1500M
+        content:
+          - source: boot.sel
+            target: uboot/ubuntu/boot.sel
+      - name: ubuntu-save
+        role: system-save
+        filesystem: ext4
+        type: "83,0FC63DAF-8483-4772-8E79-3D69D8477DE4"
+        size: 32M
+      - name: ubuntu-data
+        role: system-data
+        filesystem: ext4
+        type: "83,0FC63DAF-8483-4772-8E79-3D69D8477DE4"
+        size: 512M

@@ -1,0 +1,161 @@
+---
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2026 Jean-Pierre De Jesus DIAZ <me@jeandudey.tech>
+
+name: jeandudey-rockpro64
+title: RockPro64 Gadget
+summary: A gadget for the Pine64 RockPro64 for use with Ubuntu Core 24
+description: |
+  A gadget for the Pine64 RockPro64 for use with Ubuntu Core 24
+contact: me@jeandudey.tech
+issues: https://github.com/jeandudey/snap-rockpro64/issues
+website: https://github.com/jeandudey/snap-rockpro64
+source-code: https://github.com/jeandudey/snap-rockpro64
+donation: https://github.com/sponsors/jeandudey
+adopt-info: u-boot
+base: core24
+confinement: strict
+license: GPL-2.0
+type: gadget
+
+platforms:
+  arm64:
+    build-on:
+      - arm64
+      - amd64
+    build-for:
+      - arm64
+
+parts:
+  rkbin-src:
+    plugin: dump
+    source: https://github.com/rockchip-linux/rkbin.git
+    source-branch: master
+    source-type: git
+    organize:
+      "*": rkbin/
+    prime:
+      - -*
+
+  rkbin:
+    after:
+      - rkbin-src
+    plugin: nil
+    source: utils
+    override-build: |
+      chmod +x ./copy-rkbin-files.py
+      ./copy-rkbin-files.py "${CRAFT_STAGE}"/rkbin \
+        "${CRAFT_PART_INSTALL}"/rkbin
+    prime:
+      - -*
+
+  u-boot-patches:
+    plugin: dump
+    source: u-boot
+    prime:
+      - -*
+
+  u-boot:
+    after:
+      - rkbin
+      - u-boot-patches
+    plugin: nil
+    source: https://source.denx.de/u-boot/u-boot.git
+    source-tag: v2026.01
+    source-type: git
+    source-depth: 1
+    build-packages:
+      - make
+      - ccache
+      - device-tree-compiler
+      - bison
+      - flex
+      - python3
+      - python-is-python3
+      - python3-setuptools
+      - python3-pyelftools
+      - python3-dev
+      - swig
+      - libssl-dev
+      - libgnutls28-dev
+      - on arm64:
+          - gcc
+      - else:
+          - gcc-${CRAFT_ARCH_TRIPLET_BUILD_FOR}
+    build-environment:
+      - ARCH: "arm"
+      - on arm64:
+        - CROSS_COMPILE: ""
+      - else:
+        - CROSS_COMPILE: "${CRAFT_ARCH_TRIPLET_BUILD_FOR}-"
+      - PATH: "/usr/lib/ccache:${PATH}"
+      - BL31: "${CRAFT_STAGE}/rkbin/rk3399_bl31.elf"
+      - TEE: "${CRAFT_STAGE}/rkbin/rk3399_bl32.bin"
+    override-build: |
+      git apply "${CRAFT_STAGE}/0001-arm-dts-rockchip-enable-OP-TEE-support.patch"
+
+      make rockpro64-rk3399_defconfig
+
+      ./scripts/config --set-val BOOTDELAY 0
+      ./scripts/config --enable SYS_REDUNDAND_ENVIRONMENT
+      ./scripts/config --enable STACKPROTECTOR
+      ./scripts/config --enable SPL_STACKPROTECTOR
+      ./scripts/config --disable CMD_STACKPROTECTOR_TEST
+      ./scripts/config --disable LEGACY_IMAGE_FORMAT
+      ./scripts/config --disable SPL_HEXDUMP
+      ./scripts/config --disable EFI_LOADER
+
+      ./scripts/config --enable TEE
+      ./scripts/config --enable OPTEE
+      ./scripts/config --enable OPTEE_SERVICE_DISCOVERY
+      ./scripts/config --disable OPTEE_LIB
+      ./scripts/config --disable CHIMP_OPTEE
+      ./scripts/config --disable OPTEE_TA_AVB
+      ./scripts/config --disable OPTEE_TA_SCP03
+      ./scripts/config --disable CMD_OPTEE_RPMB
+      ./scripts/config --disable SCP03
+
+      ./scripts/config --set-val OF_LIBFDT_OVERLAY "y"
+      ./scripts/config --set-val MMC_HS400_SUPPORT "y"
+      ./scripts/config --enable LED
+      ./scripts/config --enable LED_GPIO
+
+      make olddefconfig
+      make -j $(nproc)
+
+      cp u-boot-rockchip.bin ${CRAFT_PART_INSTALL}/
+      install -m0755 tools/mkenvimage tools/mkimage \
+        -t "${CRAFT_PART_INSTALL}"
+
+      VER=$(strings u-boot-rockchip.bin | grep -E '^U-Boot [0-9]+' | cut -f2 -d\ )
+      craftctl set version="${VER}"
+      craftctl set grade="stable"
+    prime:
+      - u-boot-rockchip.bin
+
+  # File required by Ubuntu Core
+  u-boot-conf:
+    plugin: nil
+    override-build: |
+      touch ${CRAFT_PART_INSTALL}/uboot.conf
+
+  # File required by Ubuntu Core
+  boot-sel:
+    plugin: nil
+    after:
+      - u-boot
+    override-build: |
+      "${CRAFT_STAGE}"/mkenvimage -r -s 4096 \
+        -o ${CRAFT_PART_INSTALL}/boot.sel - < /dev/null
+
+  boot-scr:
+    plugin: nil
+    source: boot-scr
+    after:
+      - u-boot
+    override-build: |
+      "${CRAFT_STAGE}"/mkimage -f "${CRAFT_PART_SRC}"/boot.fit \
+        "${CRAFT_PART_INSTALL}"/boot.scr
+    build-packages:
+      - device-tree-compiler
+

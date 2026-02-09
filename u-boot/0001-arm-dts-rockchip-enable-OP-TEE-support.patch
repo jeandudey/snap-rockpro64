@@ -1,0 +1,57 @@
+From 89b57dc9517aa90ea81080cf14a29659cd7b7e86 Mon Sep 17 00:00:00 2001
+From: Isaac True <isaac.true@canonical.com>
+Date: Mon, 9 Feb 2026 18:40:45 +0100
+Subject: [PATCH] arm: dts: rockchip: enable OP-TEE support
+
+The binary distributed by Rockchip for the rk3588 is a .bin file,
+which cannot be used by the default configuration which expects an ELF
+file.
+
+Signed-off-by: Isaac True <isaac.true@canonical.com>
+---
+ arch/arm/dts/rockchip-u-boot.dtsi | 19 +++++++------------
+ 1 file changed, 7 insertions(+), 12 deletions(-)
+
+diff --git a/arch/arm/dts/rockchip-u-boot.dtsi b/arch/arm/dts/rockchip-u-boot.dtsi
+index 71d7623fe2c..9ec7b221977 100644
+--- a/arch/arm/dts/rockchip-u-boot.dtsi
++++ b/arch/arm/dts/rockchip-u-boot.dtsi
+@@ -94,20 +94,15 @@
+ 				};
+ #endif
+ 			};
+-			@tee-SEQ {
+-				fit,operation = "split-elf";
++			op-tee {
+ 				description = "TEE";
+-				type = "tee";
+-				arch = FIT_ARCH;
+-				os = "tee";
++				type = "firmware";
++				arch = "arm64";
++				os = "op-tee";
+ 				compression = "none";
+-				fit,load;
+-				fit,entry;
+-				fit,data;
+ 
+-				tee-os {
+-					optional;
+-				};
++				load = <(CFG_SYS_SDRAM_BASE + 0x8400000)>;
++				entry = <(CFG_SYS_SDRAM_BASE + 0x8400000)>;
+ #ifdef FIT_HASH_ALGO
+ 				hash {
+ 					algo = FIT_HASH_ALGO;
+@@ -152,7 +147,7 @@
+ 				description = "NAME.dtb";
+ 				fdt = "fdt-SEQ";
+ #ifdef CONFIG_ARM64
+-				fit,firmware = "atf-1", "u-boot";
++				fit,firmware = "atf-1", "op-tee", "u-boot";
+ #else
+ 				fit,firmware = "op-tee", "u-boot";
+ #endif
+-- 
+2.43.0
+
