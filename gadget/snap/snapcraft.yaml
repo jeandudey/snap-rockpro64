@@ -13,18 +13,15 @@ website: https://github.com/jeandudey/snap-rockpro64
 source-code: https://github.com/jeandudey/snap-rockpro64
 donation: https://github.com/sponsors/jeandudey
 adopt-info: u-boot
-base: core24
+base: core26
 confinement: strict
 license: GPL-2.0
 type: gadget
 
 platforms:
   arm64:
-    build-on:
-      - arm64
-      - amd64
-    build-for:
-      - arm64
+    build-on: [arm64, amd64]
+    build-for: [arm64]
 
 parts:
   rkbin-src:
@@ -61,7 +58,7 @@ parts:
       - u-boot-patches
     plugin: nil
     source: https://source.denx.de/u-boot/u-boot.git
-    source-tag: v2026.01
+    source-tag: v2026.04
     source-type: git
     source-depth: 1
     build-packages:
