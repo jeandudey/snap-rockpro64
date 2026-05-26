@@ -1,0 +1,54 @@
+name: jeandudey-rockpro64-kernel
+title: RockPro64 Kernel
+summary: Linux kernel for RockPro64.
+description: Linux kernel for RockPro64.
+contact: me@jeandudey.tech
+issues: https://github.com/jeandudey/snap-rockpro64/issues
+website: https://github.com/jeandudey/snap-rockpro64
+source-code: https://github.com/jeandudey/snap-rockpro64
+donation: https://github.com/sponsors/jeandudey
+adopt-info: kernel
+build-base: core26
+confinement: strict
+license: GPL-2.0
+type: kernel
+
+platforms:
+  arm64:
+
+package-repositories:
+  - type: apt
+    ppa: canonical-kernel-team/builder-extra
+
+parts:
+  build-tools:
+    source: https://git.launchpad.net/canonical-kernel-snaps
+    source-type: git
+    source-branch: main
+    plugin: nil
+    override-build: |
+      ln -s "$CRAFT_PART_SRC" "$CRAFT_PART_INSTALL/snap-tools"
+    prime:
+      - "-*"
+  kernel:
+    plugin: nil
+    after: [build-tools]
+    build-packages:
+      - ubuntu-core-initramfs
+      - linux-firmware
+      - linux-image-generic
+      - wireless-regdb
+    override-build: |
+      echo BUILD
+
+      BUILD_DIR=$CRAFT_PART_BUILD
+      UNAMER=$(basename /usr/lib/modules/*-generic)
+      craftctl default
+
+  # Final validation
+  validate:
+    plugin: nil
+    after: [build-tools]
+    override-prime: |
+      craftctl default
+      "$CRAFT_STAGE"/snap-tools/snap-validate level=2
